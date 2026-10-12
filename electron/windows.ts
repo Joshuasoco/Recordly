@@ -465,6 +465,13 @@ ipcMain.on("hud-overlay-set-keyboard-focus", (_event, focus: boolean) => {
 		return;
 	}
 	hud.setFocusable(Boolean(focus));
+	// setFocusable on macOS can reset the window's collection behavior flags,
+	// clearing visibleOnFullScreen. Re-assert so the HUD stays visible above
+	// fullscreen apps (e.g. a browser presenting a Canva slideshow).
+	hud.setVisibleOnAllWorkspaces(true, {
+		visibleOnFullScreen: true,
+		skipTransformProcessType: true,
+	});
 	if (focus) {
 		// macOS 14+ ignores a plain focus() while another app is active, so keys never arrive.
 		app.focus({ steal: true });
