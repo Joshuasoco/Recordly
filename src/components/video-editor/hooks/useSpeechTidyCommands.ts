@@ -3,6 +3,8 @@ import {
 	type MutableRefObject,
 	type SetStateAction,
 	useCallback,
+	useEffect,
+	useRef,
 	useState,
 } from "react";
 import { toast } from "@/components/ui/toast";
@@ -63,6 +65,23 @@ export function useSpeechTidyCommands({
 	const [isDetectingDeadAir, setIsDetectingDeadAir] = useState(false);
 	const [tidyPreview, setTidyPreview] = useState<TidyPreview | null>(null);
 
+	// Identity of the inputs that produced the current (or in-flight) preview.
+	// Compared after the async IPC call to discard results for stale inputs.
+	const previewInputRef = useRef({ videoSourcePath, videoPath, currentSourcePath, clipRegions, autoCaptions });
+	if (
+		previewInputRef.current.videoSourcePath !== videoSourcePath ||
+		previewInputRef.current.videoPath !== videoPath ||
+		previewInputRef.current.currentSourcePath !== currentSourcePath ||
+		previewInputRef.current.clipRegions !== clipRegions ||
+		previewInputRef.current.autoCaptions !== autoCaptions
+	) {
+		previewInputRef.current = { videoSourcePath, videoPath, currentSourcePath, clipRegions, autoCaptions };
+	}
+
+	useEffect(() => {
+		setTidyPreview(null);
+	}, [autoCaptions, clipRegions, currentSourcePath, videoPath, videoSourcePath]);
+
 	const previewRanges = useCallback(
 		(kind: TidyKind, ranges: SourceRange[]) => {
 			if (ranges.length === 0) {
@@ -94,11 +113,13 @@ export function useSpeechTidyCommands({
 			toast.error(t("editor.tidy.noSource", "No source video is loaded"));
 			return;
 		}
+		const inputAtStart = previewInputRef.current;
 		setIsDetectingDeadAir(true);
 		try {
 			const result = await window.electronAPI.detectRecordingSilence({
 				videoPath: sourcePath,
 			});
+			if (previewInputRef.current !== inputAtStart) return;
 			if (!result.success || !result.intervals) {
 				toast.error(
 					t("editor.tidy.analyzeFailed", "Could not analyze the recording audio."),
@@ -106,6 +127,8 @@ export function useSpeechTidyCommands({
 				return;
 			}
 			previewRanges("dead-air", planDeadAirCuts(result.intervals));
+		} catch {
+			toast.error(t("editor.tidy.analyzeFailed", "Could not analyze the recording audio."));
 		} finally {
 			setIsDetectingDeadAir(false);
 		}

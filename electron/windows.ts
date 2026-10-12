@@ -470,6 +470,8 @@ ipcMain.on("hud-overlay-set-keyboard-focus", (_event, focus: boolean) => {
 		app.focus({ steal: true });
 		hud.focus();
 		hud.webContents.focus();
+		// Reset focusability when the HUD loses native focus (e.g. app switch).
+		hud.once("blur", () => hud.setFocusable(false));
 	}
 });
 

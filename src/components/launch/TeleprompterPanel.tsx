@@ -137,6 +137,9 @@ export function TeleprompterPanel({
 	}, [playing, editing, settings.speed, voiceGating, settings.voiceSensitivity]);
 
 	useEffect(() => () => window.electronAPI?.hudOverlaySetKeyboardFocus?.(false), []);
+	useEffect(() => {
+		if (!editing) window.electronAPI?.hudOverlaySetKeyboardFocus?.(false);
+	}, [editing]);
 
 	const handleDragDown = (event: PointerEvent<HTMLDivElement>) => {
 		if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;

@@ -11,7 +11,11 @@ import {
 	sendWhisperModelDownloadProgress,
 } from "../captions/whisper";
 import { LEGACY_PROJECT_FILE_EXTENSIONS, PROJECT_FILE_EXTENSION } from "../constants";
-import { hasProjectFileExtension, loadProjectFromPath } from "../project/manager";
+import {
+	hasProjectFileExtension,
+	isAllowedLocalReadPath,
+	loadProjectFromPath,
+} from "../project/manager";
 import { setCurrentProjectPath } from "../state";
 import { approveUserPath, getRecordingsDir } from "../utils";
 
@@ -225,6 +229,12 @@ export function registerCaptionHandlers() {
 	});
 
 	ipcMain.handle("detect-recording-silence", async (_, options: { videoPath: string }) => {
+		if (!options || typeof options.videoPath !== "string") {
+			return { success: false, error: "videoPath is required" };
+		}
+		if (!isAllowedLocalReadPath(options.videoPath)) {
+			return { success: false, error: "Path not approved" };
+		}
 		try {
 			const intervals = await detectRecordingSilenceIntervals(options.videoPath);
 			return { success: true, intervals };
